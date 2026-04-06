@@ -90,14 +90,6 @@
         "storeId": null
     },
     {
-        "name": "i_user",
-        "value": "61561054725085",
-        "domain": ".facebook.com",
-        "path": "/",
-        "secure": true,
-        "httpOnly": false
-    },
-    {
         "name": "presence",
         "value": "C%7B%22lm3%22%3A%22g.2319594961785608%22%2C%22t3%22%3A%5B%7B%22o%22%3A0%2C%22i%22%3A%22g.30309094412069241%22%7D%2C%7B%22o%22%3A0%2C%22i%22%3A%22g.9704810572933232%22%7D%5D%2C%22utc3%22%3A1775486908919%2C%22v%22%3A1%7D",
         "domain": ".facebook.com",
