@@ -1,13 +1,12 @@
 module.exports = {
   config: {
     name: "pair",
-    aliases: ["ship"],
-    version: "4.0",
-    author: "zaevii",
+    aliases: ["ship", "match"],
+    version: "1.0",
     category: "relationship"
   },
 
-  onStart: async function ({ api, event, usersData, threadsData }) {
+  onStart: async function ({ api, event, usersData }) {
     const { threadID, senderID, participantIDs, mentions } = event;
 
     let target = Object.keys(mentions)[0];
@@ -23,21 +22,18 @@ module.exports = {
 
     const love = Math.floor(Math.random() * 101);
 
-    await threadsData.set(threadID, {
-      relationship: {
-        couple: {
-          user1: senderID,
-          user2: target,
-          love,
-          level: 1,
-          xp: 0,
-          married: false
-        }
-      }
-    });
+    global.relationship = global.relationship || {};
+    global.relationship[threadID] = {
+      user1: senderID,
+      user2: target,
+      love,
+      level: 1,
+      xp: 0,
+      married: false
+    };
 
     return api.sendMessage(
-      `💘 NEW COUPLE CREATED\n\n👤 ${name1}\n💞 ${name2}\n\n💖 Love: ${love}%\n📈 Level: 1`,
+      `💘 PAIR CREATED\n\n👤 ${name1}\n💞 ${name2}\n💖 Love: ${love}%`,
       threadID
     );
   }
