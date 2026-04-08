@@ -1,63 +1,44 @@
-const axios = require("axios");
-const fs = require("fs-extra");
-const path = require("path");
-
 module.exports = {
   config: {
     name: "pair",
-    aliases: ["ship", "match"],
-    version: "1.0",
+    aliases: ["ship"],
+    version: "4.0",
     author: "zaevii",
-    countDown: 5,
-    role: 0,
-    shortDescription: "Pair two random users",
-    longDescription: "Random love pairing with aesthetic image",
-    category: "fun",
-    guide: "{pn}"
+    category: "relationship"
   },
 
-  onStart: async function ({ api, event, usersData }) {
-    const { threadID, senderID, participantIDs } = event;
+  onStart: async function ({ api, event, usersData, threadsData }) {
+    const { threadID, senderID, participantIDs, mentions } = event;
 
-    if (participantIDs.length < 2)
-      return api.sendMessage("❌ Not enough users to pair!", threadID);
+    let target = Object.keys(mentions)[0];
 
-    // pick random partner (not sender)
-    let randomUser;
-    do {
-      randomUser = participantIDs[Math.floor(Math.random() * participantIDs.length)];
-    } while (randomUser === senderID);
+    if (!target) {
+      do {
+        target = participantIDs[Math.floor(Math.random() * participantIDs.length)];
+      } while (target === senderID);
+    }
 
     const name1 = await usersData.getName(senderID);
-    const name2 = await usersData.getName(randomUser);
+    const name2 = await usersData.getName(target);
 
     const love = Math.floor(Math.random() * 101);
 
-    // aesthetic image (you can replace this API)
-    const imgUrl = `https://api.popcat.xyz/ship?user1=${encodeURIComponent(name1)}&user2=${encodeURIComponent(name2)}`;
-
-    const imgPath = path.join(__dirname, "cache", `pair_${Date.now()}.png`);
-
-    const response = await axios.get(imgUrl, { responseType: "arraybuffer" });
-    fs.writeFileSync(imgPath, Buffer.from(response.data, "utf-8"));
-
-    let msg = `💘 MATCHED!\n\n`;
-    msg += `👤 ${name1}\n`;
-    msg += `💞\n`;
-    msg += `👤 ${name2}\n\n`;
-    msg += `💖 Love: ${love}%\n`;
-
-    if (love > 80) msg += "🔥 Perfect match!";
-    else if (love > 50) msg += "💓 Cute pair!";
-    else msg += "💔 Try again 😢";
+    await threadsData.set(threadID, {
+      relationship: {
+        couple: {
+          user1: senderID,
+          user2: target,
+          love,
+          level: 1,
+          xp: 0,
+          married: false
+        }
+      }
+    });
 
     return api.sendMessage(
-      {
-        body: msg,
-        attachment: fs.createReadStream(imgPath)
-      },
-      threadID,
-      () => fs.unlinkSync(imgPath)
+      `💘 NEW COUPLE CREATED\n\n👤 ${name1}\n💞 ${name2}\n\n💖 Love: ${love}%\n📈 Level: 1`,
+      threadID
     );
   }
 };
