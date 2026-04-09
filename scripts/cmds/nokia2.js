@@ -1,101 +1,40 @@
 const { createCanvas, loadImage } = require("canvas");
-const axios = require("axios");
-const fs = require("fs-extra");
-const path = require("path");
 
 module.exports = {
   config: {
-    name: "nokia2",
-    aliases: ["pinknokia", "ultranokia"],
-    version: "3.0",
-    author: "rev by ChatGPT",
-    countDown: 3,
+    name: "nokia",
+    version: "2.0",
+    author: "zaevii + GPT",
     role: 0,
-    description: "💗 Ultra clean pink Nokia transformation",
-    category: "fun"
+    description: "Ultra Pink Nokia Generator"
   },
 
-  onStart: async function ({ event, message, usersData }) {
+  onStart: async function ({ message }) {
     try {
-      const uid =
-        Object.keys(event.mentions || {})[0] ||
-        event.messageReply?.senderID ||
-        event.senderID;
-
-      const name = await usersData.getName(uid).catch(() => "User");
-
-      const avatarURL = await usersData.getAvatarUrl(uid);
-      const avatar = await loadImage(
-        (await axios.get(avatarURL, { responseType: "arraybuffer" })).data
-      );
-
-      const cacheDir = path.join(__dirname, "tmp");
-      await fs.ensureDir(cacheDir);
-
-      // 📱 YOUR NOKIA IMAGE (IMPORTANT)
-      const templatePath = path.join(cacheDir, "nokia_base.png");
-      const templateURL = "https://i.ibb.co/your-nokia-image.png"; // replace
-
-      if (!fs.existsSync(templatePath)) {
-        const res = await axios.get(templateURL, { responseType: "arraybuffer" });
-        await fs.writeFile(templatePath, res.data);
-      }
-
-      const base = await loadImage(templatePath);
-
-      const canvas = createCanvas(base.width, base.height);
+      const canvas = createCanvas(800, 800);
       const ctx = canvas.getContext("2d");
 
-      // 🖤 STEP 1: draw original image
-      ctx.drawImage(base, 0, 0);
+      // 🔥 IMAGE (IMPORTANT)
+      const img = await loadImage(
+        "https://i.pinimg.com/736x/bf/5b/28/bf5b285ee1342960edb0570e381a5511.jpg"
+      );
 
-      // 💗 STEP 2: CLEAN MASK (only phone body)
-      // We simulate clean recolor using soft layer instead of full overlay
-      ctx.save();
-      ctx.globalCompositeOperation = "source-atop";
+      // draw image full canvas
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-      // soft pink gradient (gives premium look)
-      const gradient = ctx.createLinearGradient(0, 0, base.width, base.height);
-      gradient.addColorStop(0, "rgba(255, 182, 193, 0.55)"); // light pink
-      gradient.addColorStop(0.5, "rgba(255, 105, 180, 0.45)"); // hot pink
-      gradient.addColorStop(1, "rgba(255, 20, 147, 0.35)"); // deep pink
+      // convert to buffer
+      const buffer = canvas.toBuffer("image/png");
 
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, base.width, base.height);
-      ctx.restore();
-
-      // 📱 STEP 3: SCREEN (kept CLEAN, no tint)
-      const x = 95;
-      const y = 120;
-      const w = 120;
-      const h = 140;
-
-      ctx.drawImage(avatar, x, y, w, h);
-
-      // 💾 Save output
-      const outPath = path.join(cacheDir, `${Date.now()}_ultra_pink_nokia.png`);
-      await fs.writeFile(outPath, canvas.toBuffer());
-
-      // 💬 captions
-      const captions = [
-        `💗 Ultra Pink Nokia unlocked for ${name}`,
-        `📱 Barbie mode activated 💅`,
-        `💗 ${name} got premium pink Nokia`,
-        `✨ Clean aesthetic Nokia for ${name}`
-      ];
-
-      await message.reply({
-        body: captions[Math.floor(Math.random() * captions.length)],
-        attachment: fs.createReadStream(outPath)
+      return message.reply({
+        attachment: buffer
       });
 
-      setTimeout(() => {
-        fs.unlink(outPath).catch(() => {});
-      }, 10000);
-
     } catch (err) {
-      console.error("ULTRA NOKIA ERROR:", err);
-      message.reply("❌ Failed to generate ultra pink Nokia");
+      console.log("NOKIA ERROR:", err);
+
+      return message.reply(
+        "❌ Failed to generate ultra pink Nokia.\n👉 Try using a different image host (Pinterest may block bots)."
+      );
     }
   }
 };
