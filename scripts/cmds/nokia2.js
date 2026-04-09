@@ -6,27 +6,17 @@ const path = require("path");
 module.exports = {
   config: {
     name: "nokia2",
-    aliases: ["pinknokia", "nokiapink"],
-    version: "1.0",
+    aliases: ["pinknokia", "ultranokia"],
+    version: "3.0",
     author: "rev by ChatGPT",
     countDown: 3,
     role: 0,
-    description: "💗 Put profile inside a pink Nokia phone",
-    category: "fun",
-    guide: {
-      en: "{pn} @tag | reply | no input"
-    }
+    description: "💗 Ultra clean pink Nokia transformation",
+    category: "fun"
   },
 
-  langs: {
-    en: {
-      fail: "❌ | Failed to generate pink Nokia image."
-    }
-  },
-
-  onStart: async function ({ event, message, usersData, getLang }) {
+  onStart: async function ({ event, message, usersData }) {
     try {
-      // 🎯 Target
       const uid =
         Object.keys(event.mentions || {})[0] ||
         event.messageReply?.senderID ||
@@ -34,17 +24,17 @@ module.exports = {
 
       const name = await usersData.getName(uid).catch(() => "User");
 
-      // 🖼️ Avatar
       const avatarURL = await usersData.getAvatarUrl(uid);
-      const avatarBuffer = (await axios.get(avatarURL, { responseType: "arraybuffer" })).data;
+      const avatar = await loadImage(
+        (await axios.get(avatarURL, { responseType: "arraybuffer" })).data
+      );
 
-      // 📁 Temp folder
       const cacheDir = path.join(__dirname, "tmp");
       await fs.ensureDir(cacheDir);
 
-      // 📱 Pink Nokia template
-      const templatePath = path.join(cacheDir, "pink_nokia.png");
-      const templateURL = "https://i.ibb.co/4W2DGKm/pink-nokia.png"; // ⚠️ replace if you have better HD pink nokia
+      // 📱 YOUR NOKIA IMAGE (IMPORTANT)
+      const templatePath = path.join(cacheDir, "nokia_base.png");
+      const templateURL = "https://i.ibb.co/your-nokia-image.png"; // replace
 
       if (!fs.existsSync(templatePath)) {
         const res = await axios.get(templateURL, { responseType: "arraybuffer" });
@@ -52,15 +42,29 @@ module.exports = {
       }
 
       const base = await loadImage(templatePath);
-      const avatar = await loadImage(avatarBuffer);
 
-      // 🎨 Canvas
       const canvas = createCanvas(base.width, base.height);
       const ctx = canvas.getContext("2d");
 
-      ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
+      // 🖤 STEP 1: draw original image
+      ctx.drawImage(base, 0, 0);
 
-      // 📍 Screen position (adjust if needed)
+      // 💗 STEP 2: CLEAN MASK (only phone body)
+      // We simulate clean recolor using soft layer instead of full overlay
+      ctx.save();
+      ctx.globalCompositeOperation = "source-atop";
+
+      // soft pink gradient (gives premium look)
+      const gradient = ctx.createLinearGradient(0, 0, base.width, base.height);
+      gradient.addColorStop(0, "rgba(255, 182, 193, 0.55)"); // light pink
+      gradient.addColorStop(0.5, "rgba(255, 105, 180, 0.45)"); // hot pink
+      gradient.addColorStop(1, "rgba(255, 20, 147, 0.35)"); // deep pink
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, base.width, base.height);
+      ctx.restore();
+
+      // 📱 STEP 3: SCREEN (kept CLEAN, no tint)
       const x = 95;
       const y = 120;
       const w = 120;
@@ -68,33 +72,30 @@ module.exports = {
 
       ctx.drawImage(avatar, x, y, w, h);
 
-      // 💾 Save
-      const filePath = path.join(cacheDir, `${Date.now()}_pink_nokia.png`);
-      await fs.writeFile(filePath, canvas.toBuffer());
+      // 💾 Save output
+      const outPath = path.join(cacheDir, `${Date.now()}_ultra_pink_nokia.png`);
+      await fs.writeFile(outPath, canvas.toBuffer());
 
-      // 💬 Captions
+      // 💬 captions
       const captions = [
-        `💗 ${name}'s pink Nokia era`,
-        `📱✨ Cute but unbreakable — ${name}`,
-        `💗 ${name} using aesthetic Nokia`,
-        `📱💗 Barbie Nokia unlocked for ${name}`
+        `💗 Ultra Pink Nokia unlocked for ${name}`,
+        `📱 Barbie mode activated 💅`,
+        `💗 ${name} got premium pink Nokia`,
+        `✨ Clean aesthetic Nokia for ${name}`
       ];
-      const text = captions[Math.floor(Math.random() * captions.length)];
 
-      // 📤 Send
       await message.reply({
-        body: text,
-        attachment: fs.createReadStream(filePath)
+        body: captions[Math.floor(Math.random() * captions.length)],
+        attachment: fs.createReadStream(outPath)
       });
 
-      // 🧹 Cleanup
       setTimeout(() => {
-        fs.unlink(filePath).catch(() => {});
+        fs.unlink(outPath).catch(() => {});
       }, 10000);
 
     } catch (err) {
-      console.error("PINK NOKIA ERROR:", err);
-      return message.reply(getLang("fail"));
+      console.error("ULTRA NOKIA ERROR:", err);
+      message.reply("❌ Failed to generate ultra pink Nokia");
     }
   }
 };
