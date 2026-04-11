@@ -4,50 +4,55 @@ module.exports = {
   config: {
     name: "quiz",
     aliases: ["qz"],
-    version: "2.0",
+    version: "3.0",
     author: "NC-SAIM (rev by GPT)",
     countDown: 10,
     role: 0,
-    shortDescription: "🧠 Quiz game",
-    longDescription: "Answer quiz questions and earn rewards",
+    shortDescription: "🧠 English quiz game",
     category: "game",
     guide: {
-      en: "{pn} — Start quiz"
+      en: "{pn} — Start English quiz"
     }
   },
 
   onStart: async function ({ api, event }) {
     try {
-      const apiJson =
-        "https://raw.githubusercontent.com/noobcore404/NC-STORE/main/NCApiUrl.json";
+      // 🔥 English Quiz API (Open Trivia DB)
+      const res = await axios.get(
+        "https://opentdb.com/api.php?amount=1&type=multiple"
+      );
 
-      const raw = await axios.get(apiJson, { timeout: 10000 });
-      const base = raw.data?.apiv1;
+      const q = res.data.results[0];
 
-      if (!base) {
-        return api.sendMessage("❌ API base not found.", event.threadID, event.messageID);
-      }
+      const question = q.question;
+      const correct = q.correct_answer;
+      const incorrect = q.incorrect_answers;
 
-      const { data } = await axios.get(`${base}/api/quiz`);
+      // Combine and shuffle answers
+      let options = [...incorrect, correct];
+      options = options.sort(() => Math.random() - 0.5);
 
-      if (!data?.question || !data?.options || !data?.answer) {
-        return api.sendMessage("❌ Invalid quiz data.", event.threadID, event.messageID);
-      }
+      const letters = ["A", "B", "C", "D"];
 
-      const body = `╭──❖  𝐐𝐔𝐈𝐙 𝐆𝐀𝐌𝐄  ❖──╮
+      const formatted = {};
+      letters.forEach((l, i) => {
+        formatted[l] = options[i];
+      });
 
-📜 Question:
-${data.question}
+      const correctLetter = Object.keys(formatted).find(
+        key => formatted[key] === correct
+      );
 
-🅐 ${data.options.a}
-🅑 ${data.options.b}
-🅒 ${data.options.c}
-🅓 ${data.options.d}
+      const body = `🧠 𝗘𝗡𝗚𝗟𝗜𝗦𝗛 𝗤𝗨𝗜𝗭
 
-────────────────
-💡 Reply with A / B / C / D
-⏳ You have 3 chances
-╰────────────────╯`;
+❓ ${question}
+
+A) ${formatted.A}
+B) ${formatted.B}
+C) ${formatted.C}
+D) ${formatted.D}
+
+💡 Reply with A / B / C / D`;
 
       api.sendMessage(body, event.threadID, (err, info) => {
         if (err) return;
@@ -55,15 +60,15 @@ ${data.question}
         global.GoatBot.onReply.set(info.messageID, {
           commandName: this.config.name,
           author: event.senderID,
-          answer: data.answer.trim(),
-          options: data.options,
+          answer: correctLetter,
+          options: formatted,
           chances: 3
         });
       });
 
     } catch (err) {
       console.error("QUIZ ERROR:", err);
-      api.sendMessage("❌ Failed to load quiz.", event.threadID, event.messageID);
+      api.sendMessage("❌ Failed to load quiz.", event.threadID);
     }
   },
 
@@ -72,32 +77,23 @@ ${data.question}
       const { author, answer, options, chances } = Reply;
 
       if (event.senderID !== author) {
-        return api.sendMessage("⚠️ This quiz is not for you!", event.threadID);
+        return api.sendMessage("⚠️ This quiz is not yours!", event.threadID);
       }
 
-      const userAnswer = (event.body || "").trim().toUpperCase();
-      if (!["A", "B", "C", "D"].includes(userAnswer)) {
+      const userAns = (event.body || "").trim().toUpperCase();
+
+      if (!["A", "B", "C", "D"].includes(userAns)) {
         return api.sendMessage("❌ Only A, B, C, D allowed!", event.threadID);
       }
 
-      const selected =
-        userAnswer === "A" ? options.a :
-        userAnswer === "B" ? options.b :
-        userAnswer === "C" ? options.c :
-        options.d;
-
-      if (selected.trim() === answer.trim()) {
-        try {
-          await api.unsendMessage(event.messageReply.messageID);
-        } catch {}
-
+      if (userAns === answer) {
         const rewardCoin = 300;
         const rewardExp = 100;
 
-        const userData = await usersData.get(event.senderID);
-        userData.money = (userData.money || 0) + rewardCoin;
-        userData.exp = (userData.exp || 0) + rewardExp;
-        await usersData.set(event.senderID, userData);
+        const user = await usersData.get(event.senderID);
+        user.money = (user.money || 0) + rewardCoin;
+        user.exp = (user.exp || 0) + rewardExp;
+        await usersData.set(event.senderID, user);
 
         global.GoatBot.onReply.delete(event.messageReply.messageID);
 
@@ -107,7 +103,6 @@ ${data.question}
         );
       }
 
-      // Wrong answer
       Reply.chances--;
 
       if (Reply.chances > 0) {
@@ -119,19 +114,15 @@ ${data.question}
         );
       }
 
-      try {
-        await api.unsendMessage(event.messageReply.messageID);
-      } catch {}
-
       global.GoatBot.onReply.delete(event.messageReply.messageID);
 
       return api.sendMessage(
-        `😢 Game over!\n✅ Correct answer: ${answer}`,
+        `😢 Game Over!\n✅ Correct answer was: ${answer}`,
         event.threadID
       );
 
     } catch (err) {
-      console.error("QUIZ REPLY ERROR:", err);
+      console.error(err);
     }
   }
 };
