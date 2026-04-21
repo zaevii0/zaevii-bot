@@ -1,170 +1,139 @@
-const { createCanvas } = require("canvas");
-const fs = require("fs-extra");
-const path = require("path");
-
 module.exports = {
   config: {
     name: "sudoku",
     aliases: ["sdk"],
-    version: "3.0",
-    author: "zaevii",
-    countDown: 5,
+    version: "1.0",
+    author: "ChatGPT",
     role: 0,
-    shortDescription: "Sudoku with image grid",
     category: "game",
-    guide: "{pn} [easy/medium/hard]"
+    shortDescription: {
+      en: "Play Sudoku"
+    },
+    guide: {
+      en:
+        "{pn} start\n" +
+        "{pn} fill <row> <col> <number>\n" +
+        "{pn} show\n" +
+        "{pn} reset"
+    }
   },
 
-  onStart: async function ({ message, event, args }) {
+  // 🧠 Store game per user
+  games: new Map(),
 
-    const difficulty = (args[0] || "easy").toLowerCase();
-    const removeCount = difficulty === "hard" ? 55 : difficulty === "medium" ? 45 : 35;
+  /* ========= UTIL ========= */
 
-    function shuffle(arr) {
-      return arr.sort(() => Math.random() - 0.5);
-    }
-
-    function createSolved() {
-      let base = [1,2,3,4,5,6,7,8,9];
-      let grid = [];
-
-      for (let i = 0; i < 9; i++) {
-        grid.push([...base.slice(i), ...base.slice(0, i)]);
-        if (i % 3 === 2) base = shuffle(base);
-      }
-      return grid;
-    }
-
-    function clone(grid) {
-      return grid.map(r => [...r]);
-    }
-
-    function removeCells(grid, count) {
-      let removed = 0;
-      while (removed < count) {
-        let r = Math.floor(Math.random() * 9);
-        let c = Math.floor(Math.random() * 9);
-        if (grid[r][c] !== 0) {
-          grid[r][c] = 0;
-          removed++;
-        }
-      }
-    }
-
-    function drawGrid(grid) {
-      const canvas = createCanvas(500, 550);
-      const ctx = canvas.getContext("2d");
-
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      const cellSize = 50;
-      const offsetX = 50;
-      const offsetY = 50;
-
-      ctx.font = "20px Arial";
-      ctx.fillStyle = "#000";
-
-      // Column labels A-I
-      const cols = "ABCDEFGHI";
-      for (let i = 0; i < 9; i++) {
-        ctx.fillText(cols[i], offsetX + i * cellSize + 18, 30);
-      }
-
-      // Row labels 1-9
-      for (let i = 0; i < 9; i++) {
-        ctx.fillText((i + 1), 20, offsetY + i * cellSize + 30);
-      }
-
-      // Grid lines
-      for (let i = 0; i <= 9; i++) {
-        ctx.lineWidth = (i % 3 === 0) ? 3 : 1;
-
-        // horizontal
-        ctx.beginPath();
-        ctx.moveTo(offsetX, offsetY + i * cellSize);
-        ctx.lineTo(offsetX + 9 * cellSize, offsetY + i * cellSize);
-        ctx.stroke();
-
-        // vertical
-        ctx.beginPath();
-        ctx.moveTo(offsetX + i * cellSize, offsetY);
-        ctx.lineTo(offsetX + i * cellSize, offsetY + 9 * cellSize);
-        ctx.stroke();
-      }
-
-      // Numbers
-      ctx.font = "22px Arial";
-      for (let r = 0; r < 9; r++) {
-        for (let c = 0; c < 9; c++) {
-          if (grid[r][c] !== 0) {
-            ctx.fillText(
-              grid[r][c],
-              offsetX + c * cellSize + 18,
-              offsetY + r * cellSize + 30
-            );
-          }
-        }
-      }
-
-      return canvas.toBuffer();
-    }
-
-    let solution = createSolved();
-    let puzzle = clone(solution);
-    removeCells(puzzle, removeCount);
-
-    const imgBuffer = drawGrid(puzzle);
-    const imgPath = path.join(__dirname, "cache", `sudoku_${Date.now()}.png`);
-    fs.writeFileSync(imgPath, imgBuffer);
-
-    return message.reply(
-      {
-        body: `🧩 SUDOKU (${difficulty.toUpperCase()})\n\nReply format: A1 5\nExample: B3 9`,
-        attachment: fs.createReadStream(imgPath)
-      },
-      (err, info) => {
-        global.GoatBot.onReply.set(info.messageID, {
-          commandName: "sudoku",
-          author: event.senderID,
-          puzzle,
-          solution
-        });
-      }
-    );
+  generateBoard() {
+    // simple fixed puzzle (can upgrade later)
+    return [
+      [5,3,0,0,7,0,0,0,0],
+      [6,0,0,1,9,5,0,0,0],
+      [0,9,8,0,0,0,0,6,0],
+      [8,0,0,0,6,0,0,0,3],
+      [4,0,0,8,0,3,0,0,1],
+      [7,0,0,0,2,0,0,0,6],
+      [0,6,0,0,0,0,2,8,0],
+      [0,0,0,4,1,9,0,0,5],
+      [0,0,0,0,8,0,0,7,9]
+    ];
   },
 
-  onReply: async function ({ message, event, Reply }) {
-    if (event.senderID !== Reply.author) return;
+  isValid(board, row, col, num) {
+    for (let i = 0; i < 9; i++) {
+      if (board[row][i] === num || board[i][col] === num) return false;
+    }
 
-    let { puzzle, solution } = Reply;
-    const input = event.body.toUpperCase().split(" ");
+    const r = Math.floor(row / 3) * 3;
+    const c = Math.floor(col / 3) * 3;
 
-    if (input.length !== 2)
-      return message.reply("⚠️ Format: A1 5");
+    for (let i = 0; i < 3; i++)
+      for (let j = 0; j < 3; j++)
+        if (board[r + i][c + j] === num) return false;
 
-    let [pos, num] = input;
-    num = parseInt(num);
+    return true;
+  },
 
-    const cols = "ABCDEFGHI";
-    let c = cols.indexOf(pos[0]);
-    let r = parseInt(pos[1]) - 1;
+  isComplete(board) {
+    return board.every(row => row.every(cell => cell !== 0));
+  },
 
-    if (c < 0 || r < 0 || r > 8 || num < 1 || num > 9)
-      return message.reply("❌ Invalid input");
+  formatBoard(board) {
+    return board.map((row, i) =>
+      row.map(n => (n === 0 ? "⬜" : n)).join(" ")
+    ).join("\n");
+  },
 
-    if (puzzle[r][c] !== 0)
-      return message.reply("🚫 Already filled");
+  /* ========= START ========= */
 
-    if (solution[r][c] !== num)
-      return message.reply("❌ Wrong");
+  onStart: async function ({ args, event, message }) {
+    const userID = event.senderID;
 
-    puzzle[r][c] = num;
+    if (!args[0] || args[0] === "start") {
+      const board = this.generateBoard();
 
-    return this.onStart({
-      message,
-      event,
-      args: []
-    });
+      this.games.set(userID, JSON.parse(JSON.stringify(board)));
+
+      return message.reply(
+        `🧩 SUDOKU STARTED\n\n` +
+        this.formatBoard(board) +
+        `\n\nUse:\n` +
+        `sudoku fill <row> <col> <number>\n` +
+        `Row/Col: 1-9`
+      );
+    }
+
+    if (args[0] === "show") {
+      const game = this.games.get(userID);
+      if (!game) return message.reply("⚠️ Start a game first.");
+
+      return message.reply("🧩 Current Board:\n\n" + this.formatBoard(game));
+    }
+
+    if (args[0] === "reset") {
+      this.games.delete(userID);
+      return message.reply("♻️ Game reset.");
+    }
+
+    /* ========= FILL ========= */
+
+    if (args[0] === "fill") {
+      const game = this.games.get(userID);
+      if (!game) return message.reply("⚠️ Start a game first.");
+
+      const row = parseInt(args[1]) - 1;
+      const col = parseInt(args[2]) - 1;
+      const num = parseInt(args[3]);
+
+      if (
+        isNaN(row) || isNaN(col) || isNaN(num) ||
+        row < 0 || row > 8 ||
+        col < 0 || col > 8 ||
+        num < 1 || num > 9
+      ) {
+        return message.reply("❌ Invalid input. Use: fill row col number");
+      }
+
+      if (game[row][col] !== 0) {
+        return message.reply("⚠️ Cell already filled.");
+      }
+
+      if (!this.isValid(game, row, col, num)) {
+        return message.reply("❌ Invalid move!");
+      }
+
+      game[row][col] = num;
+
+      if (this.isComplete(game)) {
+        this.games.delete(userID);
+        return message.reply(
+          `🎉 YOU SOLVED THE SUDOKU!\n\n` +
+          this.formatBoard(game)
+        );
+      }
+
+      return message.reply(
+        `✅ Move placed!\n\n` + this.formatBoard(game)
+      );
+    }
   }
 };
