@@ -18,7 +18,7 @@ module.exports = {
     name: "wordle",
     aliases: ["wl"],
     version: "2.0",
-    author: "ChatGPT",
+    author: "z",
     role: 0,
     category: "game",
     shortDescription: {
