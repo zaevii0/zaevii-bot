@@ -4,16 +4,12 @@ module.exports = {
   config: {
     name: "quiz",
     aliases: ["qz"],
-    version: "2.0",
+    version: "2.1",
     author: "NC-SAIM (rev by ChatGPT)",
-    countDown: 10,
     role: 0,
     category: "game",
     shortDescription: {
-      en: "Answer quiz and earn rewards"
-    },
-    longDescription: {
-      en: "Quiz game with rewards (coins + exp)"
+      en: "Answer quiz questions and earn rewards"
     },
     guide: {
       en: "{pn}"
@@ -22,32 +18,32 @@ module.exports = {
 
   onStart: async function ({ message, event }) {
     try {
-      // 🔗 Get API base
+      // 🔗 Fetch API base
       const configURL = "https://raw.githubusercontent.com/noobcore404/NC-STORE/main/NCApiUrl.json";
       const raw = await axios.get(configURL);
       const base = raw.data?.apiv1;
 
       if (!base)
-        return message.reply("❌ Quiz API unavailable.");
+        return message.reply("❌ Quiz service is unavailable.");
 
-      // 📜 Fetch quiz
+      // 📜 Get quiz data
       const res = await axios.get(`${base}/api/quiz`);
       const data = res.data;
 
       if (!data || !data.question)
-        return message.reply("❌ Invalid quiz data.");
+        return message.reply("❌ Failed to load quiz.");
 
       const { question, options, answer } = data;
 
       const msg = await message.reply(
         `╭──❖ QUIZ GAME ❖──╮\n\n` +
         `📜 Question:\n${question}\n\n` +
-        `🅐 ${options.a}\n` +
-        `🅑 ${options.b}\n` +
-        `🅒 ${options.c}\n` +
-        `🅓 ${options.d}\n\n` +
-        `💡 You have 3 chances\n` +
-        `Reply: A / B / C / D\n` +
+        `A. ${options.a}\n` +
+        `B. ${options.b}\n` +
+        `C. ${options.c}\n` +
+        `D. ${options.d}\n\n` +
+        `💡 You have 3 attempts.\n` +
+        `Reply with A, B, C, or D.\n` +
         `╰───────────────╯`
       );
 
@@ -61,7 +57,7 @@ module.exports = {
 
     } catch (err) {
       console.error(err);
-      return message.reply("❌ Failed to fetch quiz!");
+      return message.reply("❌ Error fetching quiz question.");
     }
   },
 
@@ -70,12 +66,12 @@ module.exports = {
     let { chances } = Reply;
 
     if (event.senderID !== author)
-      return message.reply("⚠️ This is not your quiz!");
+      return message.reply("⚠️ This quiz is not for you.");
 
     const input = event.body?.trim().toUpperCase();
 
     if (!["A", "B", "C", "D"].includes(input))
-      return message.reply("❌ Reply only A, B, C or D.");
+      return message.reply("❌ Please reply with A, B, C, or D only.");
 
     const selected =
       input === "A" ? options.a :
@@ -83,6 +79,7 @@ module.exports = {
       input === "C" ? options.c :
       input === "D" ? options.d : "";
 
+    // ✅ Correct
     if (selected.trim() === correctAnswer.trim()) {
       global.GoatBot.onReply.delete(event.messageReply.messageID);
 
@@ -97,12 +94,10 @@ module.exports = {
       });
 
       return message.reply(
-        `╭──✅ QUIZ RESULT ──╮\n` +
-        `✔ Correct!\n` +
-        `Answer: ${correctAnswer}\n\n` +
+        `✅ CORRECT ANSWER!\n\n` +
+        `✔ Answer: ${correctAnswer}\n\n` +
         `💰 +${rewardCoin} coins\n` +
-        `✨ +${rewardExp} EXP\n` +
-        `╰──────────────╯`
+        `✨ +${rewardExp} EXP`
       );
     }
 
@@ -116,15 +111,16 @@ module.exports = {
       });
 
       return message.reply(
-        `❌ Wrong answer!\n🔁 Remaining chances: ${chances}`
+        `❌ Wrong answer!\n` +
+        `🔁 Attempts left: ${chances}`
       );
     }
 
-    // 💀 Out of chances
+    // 💀 Out of attempts
     global.GoatBot.onReply.delete(event.messageReply.messageID);
 
     return message.reply(
-      `😢 No chances left!\n` +
+      `😢 No attempts left!\n` +
       `✅ Correct answer: ${correctAnswer}`
     );
   }
