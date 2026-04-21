@@ -4,125 +4,128 @@ module.exports = {
   config: {
     name: "quiz",
     aliases: ["qz"],
-    version: "3.0",
-    author: "NC-SAIM (rev by GPT)",
+    version: "2.0",
+    author: "NC-SAIM (rev by ChatGPT)",
     countDown: 10,
     role: 0,
-    shortDescription: "🧠 English quiz game",
     category: "game",
+    shortDescription: {
+      en: "Answer quiz and earn rewards"
+    },
+    longDescription: {
+      en: "Quiz game with rewards (coins + exp)"
+    },
     guide: {
-      en: "{pn} — Start English quiz"
+      en: "{pn}"
     }
   },
 
-  onStart: async function ({ api, event }) {
+  onStart: async function ({ message, event }) {
     try {
-      // 🔥 English Quiz API (Open Trivia DB)
-      const res = await axios.get(
-        "https://opentdb.com/api.php?amount=1&type=multiple"
+      // 🔗 Get API base
+      const configURL = "https://raw.githubusercontent.com/noobcore404/NC-STORE/main/NCApiUrl.json";
+      const raw = await axios.get(configURL);
+      const base = raw.data?.apiv1;
+
+      if (!base)
+        return message.reply("❌ Quiz API unavailable.");
+
+      // 📜 Fetch quiz
+      const res = await axios.get(`${base}/api/quiz`);
+      const data = res.data;
+
+      if (!data || !data.question)
+        return message.reply("❌ Invalid quiz data.");
+
+      const { question, options, answer } = data;
+
+      const msg = await message.reply(
+        `╭──❖ QUIZ GAME ❖──╮\n\n` +
+        `📜 Question:\n${question}\n\n` +
+        `🅐 ${options.a}\n` +
+        `🅑 ${options.b}\n` +
+        `🅒 ${options.c}\n` +
+        `🅓 ${options.d}\n\n` +
+        `💡 You have 3 chances\n` +
+        `Reply: A / B / C / D\n` +
+        `╰───────────────╯`
       );
 
-      const q = res.data.results[0];
-
-      const question = q.question;
-      const correct = q.correct_answer;
-      const incorrect = q.incorrect_answers;
-
-      // Combine and shuffle answers
-      let options = [...incorrect, correct];
-      options = options.sort(() => Math.random() - 0.5);
-
-      const letters = ["A", "B", "C", "D"];
-
-      const formatted = {};
-      letters.forEach((l, i) => {
-        formatted[l] = options[i];
+      global.GoatBot.onReply.set(msg.messageID, {
+        commandName: this.config.name,
+        author: event.senderID,
+        correctAnswer: answer.trim(),
+        options,
+        chances: 3
       });
-
-      const correctLetter = Object.keys(formatted).find(
-        key => formatted[key] === correct
-      );
-
-      const body = `🧠 𝗘𝗡𝗚𝗟𝗜𝗦𝗛 𝗤𝗨𝗜𝗭
-
-❓ ${question}
-
-A) ${formatted.A}
-B) ${formatted.B}
-C) ${formatted.C}
-D) ${formatted.D}
-
-💡 Reply with A / B / C / D`;
-
-      api.sendMessage(body, event.threadID, (err, info) => {
-        if (err) return;
-
-        global.GoatBot.onReply.set(info.messageID, {
-          commandName: this.config.name,
-          author: event.senderID,
-          answer: correctLetter,
-          options: formatted,
-          chances: 3
-        });
-      });
-
-    } catch (err) {
-      console.error("QUIZ ERROR:", err);
-      api.sendMessage("❌ Failed to load quiz.", event.threadID);
-    }
-  },
-
-  onReply: async function ({ api, event, Reply, usersData }) {
-    try {
-      const { author, answer, options, chances } = Reply;
-
-      if (event.senderID !== author) {
-        return api.sendMessage("⚠️ This quiz is not yours!", event.threadID);
-      }
-
-      const userAns = (event.body || "").trim().toUpperCase();
-
-      if (!["A", "B", "C", "D"].includes(userAns)) {
-        return api.sendMessage("❌ Only A, B, C, D allowed!", event.threadID);
-      }
-
-      if (userAns === answer) {
-        const rewardCoin = 300;
-        const rewardExp = 100;
-
-        const user = await usersData.get(event.senderID);
-        user.money = (user.money || 0) + rewardCoin;
-        user.exp = (user.exp || 0) + rewardExp;
-        await usersData.set(event.senderID, user);
-
-        global.GoatBot.onReply.delete(event.messageReply.messageID);
-
-        return api.sendMessage(
-          `✅ Correct Answer!\n🎉 +${rewardCoin} coins | +${rewardExp} EXP`,
-          event.threadID
-        );
-      }
-
-      Reply.chances--;
-
-      if (Reply.chances > 0) {
-        global.GoatBot.onReply.set(event.messageReply.messageID, Reply);
-
-        return api.sendMessage(
-          `❌ Wrong answer!\n🔁 Chances left: ${Reply.chances}`,
-          event.threadID
-        );
-      }
-
-      global.GoatBot.onReply.delete(event.messageReply.messageID);
-
-      return api.sendMessage(
-        `😢 Game Over!\n✅ Correct answer was: ${answer}`,
-        event.threadID
-      );
 
     } catch (err) {
       console.error(err);
+      return message.reply("❌ Failed to fetch quiz!");
     }
+  },
+
+  onReply: async function ({ event, message, Reply, usersData }) {
+    const { author, correctAnswer, options } = Reply;
+    let { chances } = Reply;
+
+    if (event.senderID !== author)
+      return message.reply("⚠️ This is not your quiz!");
+
+    const input = event.body?.trim().toUpperCase();
+
+    if (!["A", "B", "C", "D"].includes(input))
+      return message.reply("❌ Reply only A, B, C or D.");
+
+    const selected =
+      input === "A" ? options.a :
+      input === "B" ? options.b :
+      input === "C" ? options.c :
+      input === "D" ? options.d : "";
+
+    if (selected.trim() === correctAnswer.trim()) {
+      global.GoatBot.onReply.delete(event.messageReply.messageID);
+
+      const rewardCoin = 300;
+      const rewardExp = 100;
+
+      const user = await usersData.get(event.senderID);
+
+      await usersData.set(event.senderID, {
+        money: (user.money || 0) + rewardCoin,
+        exp: (user.exp || 0) + rewardExp
+      });
+
+      return message.reply(
+        `╭──✅ QUIZ RESULT ──╮\n` +
+        `✔ Correct!\n` +
+        `Answer: ${correctAnswer}\n\n` +
+        `💰 +${rewardCoin} coins\n` +
+        `✨ +${rewardExp} EXP\n` +
+        `╰──────────────╯`
+      );
+    }
+
+    // ❌ Wrong
+    chances--;
+
+    if (chances > 0) {
+      global.GoatBot.onReply.set(event.messageReply.messageID, {
+        ...Reply,
+        chances
+      });
+
+      return message.reply(
+        `❌ Wrong answer!\n🔁 Remaining chances: ${chances}`
+      );
+    }
+
+    // 💀 Out of chances
+    global.GoatBot.onReply.delete(event.messageReply.messageID);
+
+    return message.reply(
+      `😢 No chances left!\n` +
+      `✅ Correct answer: ${correctAnswer}`
+    );
   }
 };
