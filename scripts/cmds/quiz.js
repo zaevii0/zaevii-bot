@@ -5,7 +5,7 @@ module.exports = {
     name: "quiz",
     aliases: ["qz"],
     version: "2.1",
-    author: "NC-SAIM (rev by ChatGPT)",
+    author: "NC-SAIM (rev by zaevii)",
     role: 0,
     category: "game",
     shortDescription: {
