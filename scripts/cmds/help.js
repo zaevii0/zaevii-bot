@@ -89,7 +89,7 @@ module.exports = {
 		const formatCommands = (cmds) =>
 			cmds.sort().map((cmd) => `× ${cmd}`);
 
-		let msg = `━━━ ZÆVII ━━━\n`;
+		let msg = `[ ÆZ BOT ]\n`;
 		const sortedCategories = Object.keys(categories).sort();
 		for (const cat of sortedCategories) {
 			const emoji = emojiMap[cat] || "➥";
