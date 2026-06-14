@@ -4,9 +4,9 @@ const path = require("path");
 const crypto = require("crypto");
 const moment = require("moment-timezone");
 
-const BANK_NAME = "GOAT BANK";
-const BANK_CODE = "GOAT";
-const CURRENCY_SYMBOL = "$";
+const BANK_NAME = "ÆZ BANK";
+const BANK_CODE = "ÆZ";
+const CURRENCY_SYMBOL = "₱";
 const INTEREST_RATE = 0.02;
 const DAILY_WITHDRAW_LIMIT = 50000;
 const DAILY_TRANSFER_LIMIT = 100000;
